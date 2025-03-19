@@ -1,0 +1,29 @@
+---
+- name: Deploy cleanup script and schedule
+  hosts: [linux]
+  become: yes
+  vars:
+    ansible_user: osama
+
+  tasks:
+    # Create cleanup script
+    - name: Deploy cleanup.sh
+      ansible.builtin.copy:
+        dest: /usr/local/bin/cleanup.sh
+        content: |
+          #!/bin/bash
+          # Log and delete /tmp files older than 7 days
+          find /tmp -type f -mtime +6 -exec sh -c '
+            echo "$(date "+%Y-%m-%d %T"): Deleting $1" >> /var/log/cleanup.log
+            rm -f "$1"
+          ' _ {} \;
+        mode: "0700"  # Only root can execute
+
+    # Schedule cron job (runs as root)
+    - name: Add daily cron job for cleanup
+      ansible.builtin.cron:
+        name: "Cleanup /tmp files"
+        job: "/usr/local/bin/cleanup.sh"
+        user: root
+        minute: "0"
+        hour: "0"

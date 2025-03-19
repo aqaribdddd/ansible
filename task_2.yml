@@ -1,0 +1,70 @@
+---
+- name: Configure iptables firewall rules
+  hosts: [linux]
+  become: yes  # Elevate to root for installation
+  vars:
+    ansible_user: osama
+  tasks:
+    - name: Allow SSH (port 22)
+      iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 22
+        jump: ACCEPT
+        comment: "Allow SSH"
+
+    - name: Allow HTTP (port 80)
+      iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 80
+        jump: ACCEPT
+        comment: "Allow HTTP"
+
+    - name: Allow HTTPS (port 443)
+      iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 443
+        jump: ACCEPT
+        comment: "Allow HTTPS"
+
+    - name: Allow MySQL (port 3306) from specific IP range
+      iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 3306
+        source: 192.168.1.0/24
+        jump: ACCEPT
+        comment: "Allow MySQL from 192.168.1.0/24"
+
+    - name: Allow MongoDB (port 27017) from specific IP range
+      iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 27017
+        source: 192.168.1.0/24
+        jump: ACCEPT
+        comment: "Allow MongoDB from 192.168.1.0/24"
+
+    - name: Block all other inbound traffic
+      iptables:
+        chain: INPUT
+        jump: DROP
+        comment: "Deny All Policy"
+
+    - name: Allow all outbound traffic
+      iptables:
+        chain: OUTPUT
+        jump: ACCEPT
+        comment: "Allow all outbound traffic"
+
+    - name: Persist iptables rules across reboots
+      apt:
+        name: iptables-persistent
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Save iptables rules
+      command: /sbin/iptables-save > /etc/iptables/rules.v4
+      when: ansible_os_family == "Debian"

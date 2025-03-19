@@ -1,0 +1,46 @@
+---
+- name: Secure SSH and Create User
+  hosts: linux
+  become: yes  # Elevate to root for installation
+  vars:
+    ansible_user: osama
+
+  tasks:
+    - name: Disable password authentication and root login
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        state: present
+      loop:
+        - { regexp: '^PasswordAuthentication', line: 'PasswordAuthentication no' }
+        - { regexp: '^PermitRootLogin', line: 'PermitRootLogin no' }
+        - { regexp: '^PubkeyAuthentication', line: 'PubkeyAuthentication yes' }
+
+    - name: Restart SSH service
+      ansible.builtin.systemd:
+        name: ssh
+        state: restarted
+
+    - name: Create devops_user
+      ansible.builtin.user:
+        name: devops_user
+        shell: /bin/bash
+        create_home: yes
+
+    - name: Create .ssh directory for devops_user
+      ansible.builtin.file:
+        path: /home/devops_user/.ssh
+        state: directory
+        owner: devops_user
+        group: devops_user
+        mode: '0700'
+
+    - name: Add SSH public key for devops_user
+      ansible.builtin.copy:
+        dest: /home/devops_user/.ssh/authorized_keys
+        content: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDULSm2ssdrDHlwIwkn5ilPzj8tHuEsvq9CJIdvm72iVQLdqweHmOL4v3RlQEKxL90I/rcdOO9pHff1/9ojDoajE9Ai8E+V1t9QMfUvN766U43ibTgqJpWnVz5/mfmnoQ8Gxo7jFdOMtwtr4tzgAumkl93Y7jA5jfqz1j82OFajbLtyOsBrfqnGRNOIXDvuNrWXhyUPU4Vddmn8Aigq2KtleDcSY4Ipw7L7a7sAMHm6ZUhChlM2XrjSZmmSHNz7pvsjwBSzlfIzrgZwoJvpRqhqd/XVrafabaRUcFYY6zLIOoY4POUqhXQwLMgq4epLB9hK/TN32e3Xau3+EdNNQ0hXF5lU16Gzqyho6EeCJhevQgJqe6pbYs3YzZZUB7LEY9lEiFC1vwP4b/ggy/63oNcmw8vWrcRjmsCdSOtFCDrw/6BlfRfFiPcvX+BjNR9a84u+E5ONZRDR5CZZo7Y8syzs+DHlij44mKYHOgd2u0iAQhsTSo2wI4QSNosxle3jd+dT3MF7pt230vI1fCj5G3vVP1DsOoumz0Poa4X0W5BJmzQ9A7ZnD0m2c+Yzsg+CISyHgAqsOhqTEM3eoFAmXlM4RAxyAgomfsuQaW6elcc/S5gYSbAapryR7nNvQ4G47bzAreyzj73F87QvBDPggzQS4ZsVDflOy7Vayh2SAp3HmQ== aqarib@aqarib-Precision-T1700"
+        owner: devops_user
+        group: devops_user
+        mode: '0600'
+

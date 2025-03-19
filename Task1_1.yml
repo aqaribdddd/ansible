@@ -1,0 +1,62 @@
+---
+- name: Systemd Service Management
+  hosts: [linux]
+  become: yes  # Elevate to root for installation
+  vars:
+    ansible_user: osama
+
+  tasks:
+    - name: Ensure nginx is installed
+      apt:
+        name: nginx
+        state: present
+
+    - name: Start and enable nginx service
+      systemd:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Restart nginx service and check status
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+      register: nginx_status
+
+    - name: Debug nginx service status
+      ansible.builtin.debug:
+        var: nginx_status
+        
+    - name: Create custom script /usr/local/bin/hello.sh
+      ansible.builtin.copy:
+        dest: /usr/local/bin/hello.sh
+        content: |
+          #!/bin/bash
+          echo "Hello, World!" >> /var/log/hello.log
+        mode: '0755'
+
+    - name: Create custom systemd service unit file
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/hello.service
+        content: |
+          [Unit]
+          Description=Hello World Service
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/local/bin/hello.sh
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    - name: Enable and start custom hello service
+      ansible.builtin.systemd:
+        name: hello.service
+        state: started
+        enabled: yes
+

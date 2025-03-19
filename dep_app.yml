@@ -1,0 +1,64 @@
+---
+- name: Deploy Web Application             # Task Name
+  hosts: [linux]                           # Hosts Systems [linux]  in ansible host file that include [linux] variable and having ip of targeted host machine
+  become: yes                              # privilage escilation (sudo)
+  vars:                                    # variables will be using in this playbook
+    ansible_user: osama                    # ssh username of respective ips
+    repo_url: "https://github.com/aqaribdddd/Gmail_automation"  # url to install repo in host system
+    app_dir: "/var/www/gmail"                                   # location to install that repo in host system
+    ngnix_conf: "/etc/nginx/nginx.conf"                         # nginx conf file location
+    api_url: "https://example.com/deployment-status"            # api for update status of deployment
+  tasks:                                                   # Main tasks to be done ( our playbook start executing from here)
+
+    - name: Install dependencies              # install all dependencies
+      apt:                                     # using apt builten system service to install 
+        name:                                  # name of softwares/services to be installed
+          - git                    
+          - nginx
+          - python3
+        state: present                         # should be install / if absent i.e. should be uninstall
+        update_cache: yes                      # to optimized performance
+
+    - name: Clone web application repository   # Task Name
+      git:                                     # Using git
+        repo: "{{ repo_url }}"                 # fetch repository url from above variable
+        dest: "{{ app_dir }}"                  # destination of clone fetch from above variable
+        version: main                          # whuich version was there 
+      notify: Restart Nginx                    # restart nginx 
+
+    - name: Ensure Nginx service is running       #Task
+      service:
+        name: nginx
+        state: started                            # do ( systemctl start nginx)
+        enabled: yes                              # do (systemctl enable nginx
+
+    - name: Notify external API of deployment status       # Task
+      uri:                                                 # for using web
+        url: "{{ api_url }}"                               # api url for updating deployment status on web ( fetch from above variable)
+        method: POST                                       # method post ( updating on server / given vslue to server )
+        body_format: json                                  # using json body format
+        body:
+          status: "Deployment Successful"                  # update there Deployment is Successfull
+      ignore_errors: yes                                   # dont have api to update status so ignore error 
+
+- name: Handle deployment failure
+  hosts: linux
+  become: yes
+  tasks:
+    - block:
+        - name: Rollback on error
+          git:
+            repo: "{{ repo_url }}"
+            dest: "{{ app_dir }}"
+            version: "{{ previous_version }}"  # Rollback to a stable version
+      rescue:
+        - name: Log failure
+          debug:
+            msg: "Deployment failed! Rolling back..."
+        - name: Notify API about failure
+          uri:
+            url: "{{ api_url }}"
+            method: POST
+            body_format: json
+            body:
+              status: "FAILED"

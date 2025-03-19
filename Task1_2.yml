@@ -1,0 +1,29 @@
+---
+- name: Schedule Daily Backup at 2 AM
+  hosts: [linux]
+  become: yes  # Elevate to root for installation
+  vars:
+    ansible_user: osama
+    
+
+  tasks:
+    - name: Ensure backup directory exists
+      ansible.builtin.file:
+        path: /backup
+        state: directory
+        mode: '0755'
+
+    - name: Ensure log file exists
+      ansible.builtin.file:
+        path: /var/log/backup.log
+        state: touch
+        mode: '0644'
+
+    - name: Set up cron job for daily backup
+      ansible.builtin.cron:
+        name: "Daily /etc backup"
+        minute: "0"
+        hour: "2"
+        job: "/bin/bash -c 'tar -czf /backup/etc_backup_$(date +\\%F).tar.gz /etc && echo \"$(date): Backup successful\" >> /var/log/backup.log || echo \"$(date): Backup failed\" >> /var/log/backup.log'"
+        user: root
+

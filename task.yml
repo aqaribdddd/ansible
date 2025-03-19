@@ -1,0 +1,11 @@
+---
+- name: Ensure nano is installed
+  hosts: [linux]
+  vars:
+    ansible_user: osama
+  tasks:
+    - name: Install nano
+      apt:
+        name: nano
+        state: present
+
